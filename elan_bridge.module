@@ -1,0 +1,39 @@
+<?php
+
+/**
+ * @file
+ * Hooks for the ELAN AI Bridge module.
+ */
+
+declare(strict_types=1);
+
+/**
+ * Implements hook_tmgmt_job_item_state_definitions_alter().
+ */
+function elan_bridge_tmgmt_job_item_state_definitions_alter(array &$definitions): void {
+  $definitions['elan_bridge_queued'] = [
+    'label' => t('Queued in ELAN Bridge'),
+    'type' => 'translator_state',
+    'weight' => 1,
+    'show_job_filter' => TRUE,
+  ];
+  $definitions['elan_bridge_running'] = [
+    'label' => t('Translating in ELAN Bridge'),
+    'type' => 'translator_state',
+    'weight' => 2,
+    'show_job_filter' => TRUE,
+  ];
+  $definitions['elan_bridge_failed'] = [
+    'label' => t('ELAN Bridge failed'),
+    'type' => 'translator_state',
+    'weight' => 3,
+    'show_job_filter' => TRUE,
+  ];
+}
+
+/**
+ * Implements hook_cron().
+ */
+function elan_bridge_cron(): void {
+  \Drupal::service('elan_bridge.event_outbox')->recover();
+}

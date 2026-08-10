@@ -1,0 +1,29 @@
+elan_bridge.settings:
+  path: '/admin/config/regional/elan-bridge'
+  defaults:
+    _form: '\Drupal\elan_bridge\Form\SettingsForm'
+    _title: 'ELAN AI Bridge'
+  requirements:
+    _permission: 'administer elan bridge'
+
+elan_bridge.snapshot:
+  path: '/elan-bridge/v1/snapshots/{token}'
+  defaults:
+    _controller: 'elan_bridge.snapshot_controller:view'
+  requirements:
+    _access: 'TRUE'
+    token: '[a-f0-9]{64}'
+  methods: [GET]
+  options:
+    no_cache: true
+
+elan_bridge.snapshot_translations:
+  path: '/elan-bridge/v1/snapshots/{token}/translations'
+  defaults:
+    _controller: 'elan_bridge.snapshot_controller:writeTranslations'
+  requirements:
+    _access: 'TRUE'
+    token: '[a-f0-9]{64}'
+  methods: [POST]
+  options:
+    no_cache: true

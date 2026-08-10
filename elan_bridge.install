@@ -1,0 +1,206 @@
+<?php
+
+/**
+ * @file
+ * Installation hooks for the ELAN AI Bridge module.
+ */
+
+declare(strict_types=1);
+
+/**
+ * Implements hook_schema().
+ */
+function elan_bridge_schema(): array {
+  $schema['elan_bridge_snapshot'] = [
+    'description' => 'Immutable TMGMT JobItem handles exposed to ELAN Bridge.',
+    'fields' => [
+      'token' => [
+        'type' => 'varchar',
+        'length' => 64,
+        'not null' => TRUE,
+      ],
+      'submission_id' => [
+        'type' => 'varchar',
+        'length' => 64,
+        'not null' => TRUE,
+      ],
+      'event_id' => [
+        'type' => 'varchar',
+        'length' => 64,
+        'not null' => TRUE,
+      ],
+      'active_key' => [
+        'type' => 'varchar',
+        'length' => 64,
+        'not null' => FALSE,
+      ],
+      'job_id' => [
+        'type' => 'int',
+        'size' => 'big',
+        'unsigned' => TRUE,
+        'not null' => TRUE,
+      ],
+      'job_item_id' => [
+        'type' => 'int',
+        'size' => 'big',
+        'unsigned' => TRUE,
+        'not null' => TRUE,
+      ],
+      'binding_id' => [
+        'type' => 'int',
+        'unsigned' => TRUE,
+        'not null' => TRUE,
+      ],
+      'source_locale' => [
+        'type' => 'varchar',
+        'length' => 32,
+        'not null' => TRUE,
+      ],
+      'target_locale' => [
+        'type' => 'varchar',
+        'length' => 32,
+        'not null' => TRUE,
+      ],
+      'source_version' => [
+        'type' => 'varchar',
+        'length' => 64,
+        'not null' => TRUE,
+      ],
+      'source_label' => [
+        'type' => 'varchar',
+        'length' => 255,
+        'not null' => TRUE,
+      ],
+      'source_data' => [
+        'type' => 'text',
+        'size' => 'big',
+        'not null' => TRUE,
+      ],
+      'result_digest' => [
+        'type' => 'varchar',
+        'length' => 64,
+        'not null' => FALSE,
+      ],
+      'result_payload' => [
+        'type' => 'text',
+        'size' => 'big',
+        'not null' => FALSE,
+      ],
+      'result_received' => [
+        'type' => 'int',
+        'size' => 'big',
+        'not null' => FALSE,
+      ],
+      'status' => [
+        'type' => 'varchar',
+        'length' => 32,
+        'not null' => TRUE,
+        'default' => 'pending',
+      ],
+      'created' => [
+        'type' => 'int',
+        'size' => 'big',
+        'not null' => TRUE,
+      ],
+      'updated' => [
+        'type' => 'int',
+        'size' => 'big',
+        'not null' => TRUE,
+      ],
+    ],
+    'primary key' => ['token'],
+    'unique keys' => [
+      'submission_id' => ['submission_id'],
+      'event_id' => ['event_id'],
+      'active_key' => ['active_key'],
+    ],
+    'indexes' => [
+      'job_item' => ['job_item_id'],
+      'job' => ['job_id'],
+      'status' => ['status'],
+    ],
+  ];
+
+  $schema['elan_bridge_event_outbox'] = [
+    'description' => 'Durable signed events awaiting delivery to ELAN Bridge.',
+    'fields' => [
+      'id' => [
+        'type' => 'serial',
+        'unsigned' => TRUE,
+        'not null' => TRUE,
+      ],
+      'event_id' => [
+        'type' => 'varchar',
+        'length' => 64,
+        'not null' => TRUE,
+      ],
+      'snapshot_token' => [
+        'type' => 'varchar',
+        'length' => 64,
+        'not null' => TRUE,
+      ],
+      'connection_fingerprint' => [
+        'type' => 'varchar',
+        'length' => 64,
+        'not null' => TRUE,
+      ],
+      'payload' => [
+        'type' => 'text',
+        'size' => 'big',
+        'not null' => TRUE,
+      ],
+      'status' => [
+        'type' => 'varchar',
+        'length' => 24,
+        'not null' => TRUE,
+        'default' => 'pending',
+      ],
+      'attempts' => [
+        'type' => 'int',
+        'unsigned' => TRUE,
+        'not null' => TRUE,
+        'default' => 0,
+      ],
+      'available' => [
+        'type' => 'int',
+        'size' => 'big',
+        'not null' => TRUE,
+        'default' => 0,
+      ],
+      'lease_until' => [
+        'type' => 'int',
+        'size' => 'big',
+        'not null' => FALSE,
+      ],
+      'last_error' => [
+        'type' => 'text',
+        'not null' => FALSE,
+      ],
+      'created' => [
+        'type' => 'int',
+        'size' => 'big',
+        'not null' => TRUE,
+      ],
+      'updated' => [
+        'type' => 'int',
+        'size' => 'big',
+        'not null' => TRUE,
+      ],
+      'delivered' => [
+        'type' => 'int',
+        'size' => 'big',
+        'not null' => FALSE,
+      ],
+    ],
+    'primary key' => ['id'],
+    'unique keys' => [
+      'event_id' => ['event_id'],
+    ],
+    'indexes' => [
+      'snapshot' => ['snapshot_token'],
+      'status' => ['status', 'updated'],
+    ],
+  ];
+
+  return $schema;
+}

@@ -1,0 +1,4 @@
+administer elan bridge:
+  title: 'Administer ELAN AI Bridge'
+  description: 'Configure the Bridge connection and credentials.'
+  restrict access: true

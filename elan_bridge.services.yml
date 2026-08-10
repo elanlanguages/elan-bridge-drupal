@@ -1,0 +1,55 @@
+services:
+  logger.channel.elan_bridge:
+    parent: logger.channel_base
+    arguments: ['elan_bridge']
+
+  elan_bridge.connection_settings:
+    class: Drupal\elan_bridge\Connection\ConnectionSettings
+    arguments: ['@config.factory', '@key.repository']
+
+  elan_bridge.snapshot_serializer:
+    class: Drupal\elan_bridge\Snapshot\SnapshotSerializer
+
+  elan_bridge.snapshot_repository:
+    class: Drupal\elan_bridge\Snapshot\SnapshotRepository
+    arguments: ['@database', '@datetime.time']
+
+  elan_bridge.event_outbox:
+    class: Drupal\elan_bridge\Event\EventOutbox
+    arguments: ['@database', '@queue', '@datetime.time']
+
+  elan_bridge.translation_request_factory:
+    class: Drupal\elan_bridge\Event\TranslationRequestFactory
+
+  elan_bridge.bridge_client:
+    class: Drupal\elan_bridge\Http\BridgeClient
+    arguments:
+      - '@http_client'
+      - '@elan_bridge.connection_settings'
+
+  elan_bridge.submission_manager:
+    class: Drupal\elan_bridge\Submission\SubmissionManager
+    arguments:
+      - '@database'
+      - '@elan_bridge.snapshot_repository'
+      - '@elan_bridge.snapshot_serializer'
+      - '@elan_bridge.event_outbox'
+      - '@elan_bridge.translation_request_factory'
+      - '@elan_bridge.connection_settings'
+      - '@tmgmt.data'
+      - '@uuid'
+      - '@datetime.time'
+      - '@logger.channel.elan_bridge'
+
+  elan_bridge.snapshot_controller:
+    class: Drupal\elan_bridge\Controller\SnapshotController
+    arguments:
+      - '@entity_type.manager'
+      - '@tmgmt.data'
+      - '@elan_bridge.snapshot_repository'
+      - '@elan_bridge.snapshot_serializer'
+      - '@elan_bridge.connection_settings'
+      - '@lock.persistent'
+      - '@database'
+    tags:
+      - { name: controller.service_arguments }

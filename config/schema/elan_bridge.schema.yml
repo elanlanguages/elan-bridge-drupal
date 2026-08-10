@@ -1,0 +1,24 @@
+elan_bridge.settings:
+  type: config_object
+  label: 'ELAN AI Bridge settings'
+  mapping:
+    bridge_url:
+      type: uri
+      label: 'Bridge API base URL'
+    connection_id:
+      type: string
+      label: 'Bridge connection ID'
+    bearer_key_id:
+      type: string
+      label: 'Bearer credential Key ID'
+    webhook_key_id:
+      type: string
+      label: 'Webhook HMAC Key ID'
+
+tmgmt.translator.settings.elan_bridge:
+  type: tmgmt.translator_base
+  label: 'ELAN AI Bridge translator settings'
+  mapping:
+    binding_id:
+      type: integer
+      label: 'Bridge project binding ID'

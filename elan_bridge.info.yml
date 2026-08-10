@@ -1,0 +1,10 @@
+name: ELAN AI Bridge
+type: module
+description: Connects TMGMT JobItems to the ELAN AI Bridge translation pipeline.
+package: Translation Management
+version: 0.1.0
+core_version_requirement: ^10.3 || ^11
+dependencies:
+  - key:key
+  - tmgmt:tmgmt
+configure: elan_bridge.settings
