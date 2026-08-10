@@ -7,18 +7,24 @@ on:
 
 jobs:
   test:
-    name: Drupal ${{ matrix.drupal }} / PHP ${{ matrix.php }}
+    name: Drupal ${{ matrix.drupal }} / TMGMT ${{ matrix.tmgmt }} / PHP ${{ matrix.php }}
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
       matrix:
         include:
           - php: '8.1'
-            drupal: '10'
+            drupal: '10.x current'
             core: '^10.3'
+            tmgmt: '1.17.0'
+          - php: '8.1'
+            drupal: '10.x current'
+            core: '^10.3'
+            tmgmt: '1.18.0'
           - php: '8.3'
-            drupal: '11'
+            drupal: '11.x current'
             core: '^11'
+            tmgmt: '1.18.0'
     steps:
       - uses: actions/checkout@v4
 
@@ -28,9 +34,9 @@ jobs:
           coverage: none
           tools: composer:v2
 
-      - name: Select Drupal core
+      - name: Select compatibility lane
         run: |
-          composer require --no-update "drupal/core:${{ matrix.core }}"
+          composer require --no-update "drupal/core:${{ matrix.core }}" "drupal/tmgmt:${{ matrix.tmgmt }}"
           composer require --dev --no-update "drupal/core-dev:${{ matrix.core }}"
 
       - name: Install dependencies
@@ -39,7 +45,7 @@ jobs:
       - name: Coding standards
         run: composer lint
 
-      - name: Unit tests
+      - name: Tests
         env:
           SYMFONY_DEPRECATIONS_HELPER: disabled
         run: composer test
