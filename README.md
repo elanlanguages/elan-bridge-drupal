@@ -22,15 +22,53 @@ Bridge runs the translation workflow and returns translated TMGMT data items.
 The v1 support boundary is symmetric Paragraphs translation. Asymmetric
 per-language Paragraphs structures are not yet supported.
 
-## Install for development
+## Install with Composer
 
-Place this repository at `web/modules/custom/elan_bridge`, then install its
-dependencies and enable it:
+Composer is the canonical installation and upgrade method. Tagged releases are
+distributed directly from this GitHub VCS repository until a dedicated ELAN
+Composer registry is introduced.
+
+Run these commands from the root of a Composer-managed Drupal project:
 
 ```bash
-composer require drupal/tmgmt:^1.18 drupal/key:^1.22
-drush en elan_bridge
+composer config repositories.elan-bridge vcs https://github.com/elanlanguages/elan-bridge-drupal.git
+composer require elan/elan-bridge-drupal:^0.1
+vendor/bin/drush en elan_bridge -y
 ```
+
+Before the first tagged release, development environments can require
+`elan/elan-bridge-drupal:dev-main` instead of the `^0.1` constraint.
+
+Composer installs the connector at `web/modules/contrib/elan_bridge` and
+resolves TMGMT and Key as independent packages. Do not copy either dependency
+into this module. The Drupal package repository must be configured in the
+consuming project's root `composer.json`; projects created from Drupal's
+recommended Composer template already include it. Repository declarations in a
+dependency's `composer.json` are intentionally ignored by Composer.
+
+### Upgrade
+
+Update the connector and its compatible dependencies from the Drupal project
+root:
+
+```bash
+composer update elan/elan-bridge-drupal --with-all-dependencies
+vendor/bin/drush updatedb -y
+vendor/bin/drush cache:rebuild
+```
+
+### Install a local checkout for development
+
+Use a Composer path repository instead of copying the module manually:
+
+```bash
+composer config repositories.elan-bridge path /absolute/path/to/elan-bridge-drupal
+composer require elan/elan-bridge-drupal:@dev
+vendor/bin/drush en elan_bridge -y
+```
+
+Composer normally symlinks a path repository, so edits in the checkout are
+immediately visible to the Drupal site.
 
 ## Configure the initial connection
 

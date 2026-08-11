@@ -1,8 +1,18 @@
 {
   "name": "elan/elan-bridge-drupal",
   "description": "TMGMT connector for the ELAN AI Bridge translation pipeline.",
+  "keywords": [
+    "drupal",
+    "tmgmt",
+    "translation"
+  ],
   "type": "drupal-module",
   "license": "proprietary",
+  "homepage": "https://github.com/elanlanguages/elan-bridge-drupal",
+  "support": {
+    "issues": "https://github.com/elanlanguages/elan-bridge-drupal/issues",
+    "source": "https://github.com/elanlanguages/elan-bridge-drupal"
+  },
   "repositories": [
     {
       "type": "composer",
@@ -42,6 +52,9 @@
       "tbachert/spi": true
     },
     "sort-packages": true
+  },
+  "extra": {
+    "installer-name": "elan_bridge"
   },
   "scripts": {
     "lint": "phpcs",

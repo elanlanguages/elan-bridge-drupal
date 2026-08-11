@@ -43,3 +43,30 @@ jobs:
         env:
           SYMFONY_DEPRECATIONS_HELPER: disabled
         run: composer test
+
+  composer-install:
+    name: Composer install / Drupal ${{ matrix.drupal }} / PHP ${{ matrix.php }}
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - php: '8.1'
+            drupal: '10'
+            core: '^10.3'
+            drush: '^12.5'
+          - php: '8.3'
+            drupal: '11'
+            core: '^11'
+            drush: '^13.7'
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: ${{ matrix.php }}
+          coverage: none
+          tools: composer:v2
+
+      - name: Install through a Drupal root project and enable the module
+        run: bash bin/test-composer-install.sh "${{ matrix.core }}" "${{ matrix.drush }}"
