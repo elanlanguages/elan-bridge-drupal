@@ -32,7 +32,15 @@ if ((string) getenv('SIMPLETEST_DB') === '') {
  * Creates a development-only link without replacing an existing path.
  */
 function elan_bridge_test_link(string $target, string $link): void {
-  if (file_exists($link) || is_link($link)) {
+  if (is_link($link)) {
+    if (readlink($link) === $target) {
+      return;
+    }
+    if (!unlink($link)) {
+      throw new RuntimeException(sprintf('Could not replace stale Drupal test link %s.', $link));
+    }
+  }
+  elseif (file_exists($link)) {
     return;
   }
   if (!symlink($target, $link)) {
