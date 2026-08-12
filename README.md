@@ -15,9 +15,14 @@ Bridge runs the translation workflow and returns translated TMGMT data items.
 
 - Drupal **10.3+ or 11**
 - PHP **8.1+** (use PHP 8.3+ with Drupal 11)
-- [TMGMT **1.17 or 1.18**](https://www.drupal.org/project/tmgmt)
 - [Key 1.22+](https://www.drupal.org/project/key)
 - An HTTPS URL reachable by ELAN Bridge
+
+Tested Drupal/TMGMT combinations:
+
+- Drupal 10 with [TMGMT 1.17.0](https://www.drupal.org/project/tmgmt)
+- Drupal 10 with TMGMT 1.18.0
+- Drupal 11 with TMGMT 1.18.0
 
 The v1 support boundary is symmetric Paragraphs translation. Asymmetric
 per-language Paragraphs structures are not yet supported.

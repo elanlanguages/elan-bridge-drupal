@@ -41,7 +41,7 @@ function elan_bridge_test_link(string $target, string $link): void {
     }
   }
   elseif (file_exists($link)) {
-    return;
+    throw new RuntimeException(sprintf('Drupal test path exists and is not a link: %s.', $link));
   }
   if (!symlink($target, $link)) {
     throw new RuntimeException(sprintf('Could not create Drupal test link %s.', $link));
@@ -49,8 +49,9 @@ function elan_bridge_test_link(string $target, string $link): void {
 }
 
 foreach (['sites', 'modules', 'profiles', 'themes'] as $directory) {
-  if (!is_dir($drupal_root . '/' . $directory)) {
-    mkdir($drupal_root . '/' . $directory, 0775, TRUE);
+  $path = $drupal_root . '/' . $directory;
+  if (!is_dir($path) && !mkdir($path, 0775, TRUE) && !is_dir($path)) {
+    throw new RuntimeException(sprintf('Could not create Drupal test directory %s.', $path));
   }
 }
 
@@ -70,8 +71,8 @@ elan_bridge_test_link(
 // Do not link the whole repository: Drupal's bootstrap recursively follows
 // extension links and would then walk back into vendor/drupal indefinitely.
 $module_root = $drupal_root . '/modules/elan_bridge';
-if (!is_dir($module_root)) {
-  mkdir($module_root, 0775, TRUE);
+if (!is_dir($module_root) && !mkdir($module_root, 0775, TRUE) && !is_dir($module_root)) {
+  throw new RuntimeException(sprintf('Could not create Drupal test module directory %s.', $module_root));
 }
 foreach (['config', 'src'] as $directory) {
   elan_bridge_test_link(

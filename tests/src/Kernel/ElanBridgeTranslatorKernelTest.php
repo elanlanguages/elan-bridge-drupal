@@ -39,7 +39,6 @@ final class ElanBridgeTranslatorKernelTest extends KernelTestBase {
     'field',
     'text',
     'language',
-    'locale',
     'options',
     'tmgmt',
     'tmgmt_test',
@@ -48,11 +47,21 @@ final class ElanBridgeTranslatorKernelTest extends KernelTestBase {
   ];
 
   /**
+   * Working directory used before entering the synthetic Drupal root.
+   */
+  private string $originalWorkingDirectory;
+
+  /**
    * {@inheritdoc}
    */
   protected function setUp(): void {
     // PHPUnit 9 resolves the test suite from the repository, while Drupal 10's
     // legacy SQLite driver resolves its module metadata from the Drupal root.
+    $original_working_directory = getcwd();
+    if ($original_working_directory === FALSE) {
+      throw new \RuntimeException('Could not determine the PHPUnit working directory.');
+    }
+    $this->originalWorkingDirectory = $original_working_directory;
     $drupal_root = dirname(__DIR__, 3) . '/vendor/drupal';
     if (!chdir($drupal_root)) {
       throw new \RuntimeException('Could not enter the synthetic Drupal test root.');
@@ -79,6 +88,20 @@ final class ElanBridgeTranslatorKernelTest extends KernelTestBase {
       ->set('bearer_key_id', 'elan_bridge_bearer')
       ->set('webhook_key_id', 'elan_bridge_webhook')
       ->save();
+  }
+
+  /**
+   * {@inheritdoc}
+   */
+  protected function tearDown(): void {
+    try {
+      parent::tearDown();
+    }
+    finally {
+      if (!chdir($this->originalWorkingDirectory)) {
+        throw new \RuntimeException('Could not restore the PHPUnit working directory.');
+      }
+    }
   }
 
   /**

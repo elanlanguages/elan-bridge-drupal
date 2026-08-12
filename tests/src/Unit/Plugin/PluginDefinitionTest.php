@@ -31,9 +31,7 @@ final class PluginDefinitionTest extends TestCase {
 
     // Reflection exposes attribute arguments even on TMGMT 1.17, where the
     // TranslatorPlugin attribute class does not exist yet.
-    $attribute_values = class_exists(TranslatorPluginAttribute::class)
-      ? get_object_vars($attributes[0]->newInstance())
-      : $attributes[0]->getArguments();
+    $attribute_values = $attributes[0]->getArguments();
     $attribute_definition = $this->normalizeDefinition($attribute_values);
 
     $reader = new SimpleAnnotationReader();

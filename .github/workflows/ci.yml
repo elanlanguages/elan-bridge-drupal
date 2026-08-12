@@ -37,9 +37,12 @@ jobs:
           tools: composer:v2
 
       - name: Select compatibility lane
+        env:
+          CORE_CONSTRAINT: ${{ matrix.core }}
+          TMGMT_CONSTRAINT: ${{ matrix.tmgmt }}
         run: |
-          composer require --no-update "drupal/core:${{ matrix.core }}" "drupal/tmgmt:${{ matrix.tmgmt }}"
-          composer require --dev --no-update "drupal/core-dev:${{ matrix.core }}"
+          composer require --no-update "drupal/core:${CORE_CONSTRAINT}" "drupal/tmgmt:${TMGMT_CONSTRAINT}"
+          composer require --dev --no-update "drupal/core-dev:${CORE_CONSTRAINT}"
 
       - name: Install dependencies
         run: composer update --no-interaction --prefer-dist --no-progress
