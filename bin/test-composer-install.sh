@@ -44,6 +44,13 @@ rsync -a \
   --exclude '.DS_Store' \
   "$ROOT/" "$SOURCE/"
 
+git -C "$SOURCE" init --quiet
+git -C "$SOURCE" config user.name 'ELAN Composer smoke test'
+git -C "$SOURCE" config user.email 'composer-smoke-test@elanlanguages.com'
+git -C "$SOURCE" add .
+git -C "$SOURCE" commit --quiet -m 'Build Composer smoke-test fixture'
+git -C "$SOURCE" tag v0.1.0
+
 composer create-project \
   "drupal/recommended-project:$CORE_CONSTRAINT" \
   "$SITE" \
@@ -51,10 +58,7 @@ composer create-project \
   --prefer-dist \
   --no-progress
 
-REPOSITORY="$(printf \
-  '{"type":"path","url":"%s","options":{"symlink":false,"versions":{"elan/elan-bridge-drupal":"0.1.0"}}}' \
-  "$SOURCE")"
-composer --working-dir="$SITE" config repositories.elan-bridge "$REPOSITORY"
+composer --working-dir="$SITE" config repositories.elan-bridge vcs "$SOURCE"
 composer --working-dir="$SITE" require \
   'elan/elan-bridge-drupal:^0.1' \
   "drush/drush:$DRUSH_CONSTRAINT" \
