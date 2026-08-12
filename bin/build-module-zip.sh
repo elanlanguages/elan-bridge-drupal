@@ -45,4 +45,22 @@ rsync -a \
 cp "$DIST/$SLUG.zip" "$DIST/$SLUG-$VERSION.zip"
 rm -rf "$BUILD"
 
+HAS_COMPOSER=false
+while IFS= read -r ENTRY; do
+  case "$ENTRY" in
+    "$SLUG/composer.json")
+      HAS_COMPOSER=true
+      ;;
+    */vendor/*|*/.git/*|*/composer.lock)
+      echo "error: release archive contains forbidden path '$ENTRY'" >&2
+      exit 1
+      ;;
+  esac
+done < <(unzip -Z1 "$DIST/$SLUG.zip")
+
+if [[ "$HAS_COMPOSER" != true ]]; then
+  echo "error: release archive does not contain $SLUG/composer.json" >&2
+  exit 1
+fi
+
 echo "built $DIST/$SLUG.zip (version ${VERSION})"
