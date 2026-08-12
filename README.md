@@ -15,9 +15,14 @@ Bridge runs the translation workflow and returns translated TMGMT data items.
 
 - Drupal **10.3+ or 11**
 - PHP **8.1+** (use PHP 8.3+ with Drupal 11)
-- [TMGMT 1.18+](https://www.drupal.org/project/tmgmt)
 - [Key 1.22+](https://www.drupal.org/project/key)
 - An HTTPS URL reachable by ELAN Bridge
+
+Tested Drupal/TMGMT combinations:
+
+- Drupal 10 with [TMGMT 1.17.0](https://www.drupal.org/project/tmgmt)
+- Drupal 10 with TMGMT 1.18.0
+- Drupal 11 with TMGMT 1.18.0
 
 The v1 support boundary is symmetric Paragraphs translation. Asymmetric
 per-language Paragraphs structures are not yet supported.
@@ -150,9 +155,11 @@ composer check
 bash bin/build-module-zip.sh --expect 0.1.0
 ```
 
-CI covers Drupal 10 on PHP 8.1 and Drupal 11 on PHP 8.3. Release tags matching
-`v*` build a clean `elan_bridge.zip` artifact, following the WordPress companion
-repository's release convention.
+CI pins three compatibility lanes: current Drupal 10 with TMGMT 1.17.0 on PHP
+8.1, current Drupal 10 with TMGMT 1.18.0 on PHP 8.1, and current Drupal 11 with
+TMGMT 1.18.0 on PHP 8.3. Release tags matching `v*` build a clean
+`elan_bridge.zip` artifact, following the WordPress companion repository's
+release convention.
 
 ## Support
 

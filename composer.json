@@ -23,7 +23,7 @@
     "php": ">=8.1",
     "drupal/core": "^10.3 || ^11",
     "drupal/key": "^1.22",
-    "drupal/tmgmt": "^1.18"
+    "drupal/tmgmt": "^1.17"
   },
   "require-dev": {
     "drupal/coder": "^8.3",

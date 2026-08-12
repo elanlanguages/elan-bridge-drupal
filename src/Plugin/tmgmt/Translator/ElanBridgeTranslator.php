@@ -19,6 +19,18 @@ use Symfony\Component\DependencyInjection\ContainerInterface;
 
 /**
  * Submits TMGMT jobs to the ELAN AI Bridge.
+ *
+ * @TranslatorPlugin(
+ *   id = "elan_bridge",
+ *   label = @Translation("ELAN AI Bridge"),
+ *   description = @Translation("Submits translation jobs to an exact ELAN AI Bridge project binding."),
+ *   default_settings = {
+ *     "binding_id" = 0,
+ *   },
+ *   ui = "Drupal\elan_bridge\Translator\ElanBridgeTranslatorUi",
+ *   files = FALSE,
+ *   map_remote_languages = TRUE,
+ * )
  */
 #[TranslatorPlugin(
   id: 'elan_bridge',
