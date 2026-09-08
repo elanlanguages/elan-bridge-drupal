@@ -80,7 +80,8 @@ final class SnapshotSerializer {
       ],
       'source_locale' => (string) $snapshot['source_locale'],
       'keys' => $keys,
-      'translations' => $translations,
+      // Preserve the JSON map type when there are no existing translations.
+      'translations' => (object) $translations,
       'metadata' => $metadata,
     ];
   }

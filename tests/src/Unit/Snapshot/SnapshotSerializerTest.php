@@ -62,6 +62,10 @@ final class SnapshotSerializerTest extends TestCase {
     self::assertSame(hash('sha256', 'Hello'), $payload['keys'][0]['source_digest']);
     self::assertSame('basic_html', $payload['metadata']['data_items']['field_body][0][value']['format']);
     self::assertSame(500, $payload['metadata']['data_items']['field_body][0][value']['max_length']);
+    // Bridge requires an object for the map, including on a fresh snapshot.
+    $wire_payload = json_decode(json_encode($payload, JSON_THROW_ON_ERROR), FALSE, 512, JSON_THROW_ON_ERROR);
+    self::assertInstanceOf(\stdClass::class, $wire_payload->translations);
+    self::assertSame([], get_object_vars($wire_payload->translations));
   }
 
   /**
