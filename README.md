@@ -5,11 +5,15 @@ Bridge**. Drupal remains responsible for extracting content, preserving entity
 and Paragraphs structure, reviewing translations, and applying revisions. ELAN
 Bridge runs the translation workflow and returns translated TMGMT data items.
 
-> This repository is under active development. The first implementation slice
-> provides the TMGMT translator, signed durable event delivery, immutable
-> JobItem snapshot endpoints, and review-stage result import. Browser-based
-> pairing, the Bridge-side Drupal HTTP connector, and lifecycle callbacks are
-> the next slices. This initial commit is not yet an end-to-end release.
+Version **0.2.0** adds self-service setup through the hosted
+[ELAN demo](https://demo.elanlanguages.ai). Install the module, open its
+configuration page, and choose **Connect to ELAN demo**. Sign in, choose your
+organization and project, then return to Drupal. The wizard verifies the site's
+callback and configures credentials, one provider, and language mappings.
+
+The translation connector supports immutable snapshots, signed durable delivery,
+and TMGMT editorial review. Intermediate workflow lifecycle callbacks remain
+unimplemented. See the [installation and operations guide](docs/demo-installation-and-operations.md).
 
 ## Requirements
 
@@ -37,12 +41,12 @@ Run these commands from the root of a Composer-managed Drupal project:
 
 ```bash
 composer config repositories.elan-bridge vcs https://github.com/elanlanguages/elan-bridge-drupal.git
-composer require elan/elan-bridge-drupal:^0.1
+composer require elan/elan-bridge-drupal:^0.2
 vendor/bin/drush en elan_bridge -y
 ```
 
-Before the first tagged release, development environments can require
-`elan/elan-bridge-drupal:dev-main` instead of the `^0.1` constraint.
+The self-service release is `v0.2.0`. Pin `elan/elan-bridge-drupal:0.2.0` when an exact
+version is required for acceptance testing.
 
 Composer installs the connector at `web/modules/contrib/elan_bridge` and
 resolves TMGMT and Key as independent packages. Do not copy either dependency
@@ -75,24 +79,35 @@ vendor/bin/drush en elan_bridge -y
 Composer normally symlinks a path repository, so edits in the checkout are
 immediately visible to the Drupal site.
 
-## Configure the initial connection
+## Connect the site
 
-1. In Drupal's Key module, create two independent authentication keys:
-   - a bearer token used when Bridge reads or writes TMGMT snapshots;
-   - an HMAC secret used when Drupal sends events to Bridge.
-2. Open **Configuration → Translation → ELAN AI Bridge** and enter the Bridge
-   API base URL, Bridge connection ID, and the two Key references. The base URL
-   is joined directly with `/connectors`; include a proxy prefix such as `/api`
-   in the configured base only when that proxy exposes the Drupal route.
-3. Open **Translation → Providers**, add an **ELAN AI Bridge** translator, and
-   enter the numeric Bridge project binding ID. Leave TMGMT automatic
-   acceptance disabled so every result stops for editorial review.
-4. Map Drupal language codes to the locale codes used by the paired Bridge
-   project in the TMGMT translator configuration.
+1. Enable the source and target languages and content translation in Drupal.
+2. Open **Configuration → Region and language → ELAN AI Bridge**, or the
+   module's **Configure** link. Confirm the detected public HTTPS Drupal URL.
+   A public callback override is available for local development tunnels.
+3. Choose **Connect to ELAN demo**. Sign in to demo and choose an organization
+   where you are an owner or administrator.
+4. Select an existing compatible translation project or create one for this
+   site. Approve the connection and return to Drupal.
+5. Confirm the connection, project, and background-processing status. The wizard
+   creates or updates `elan_bridge` with the project binding and matching
+   languages, keeping automatic acceptance disabled.
+6. Submit a test page through TMGMT, review its translated fields, and accept it.
 
-The manual connection fields are temporary. The planned pairing flow will mint
-and rotate both credentials server-to-server, then let the administrator choose
-the ELAN organization and project without copying secrets through the browser.
+No manual credential exchange or database access is required for site setup.
+The hosted demo must have the matching Drupal pairing endpoints and auth-schema
+migration deployed. Drupal cron must run for background delivery; the wizard
+reports its last run, and the operations guide explains scheduling.
+
+Reconnect preserves existing credentials and Key references. Disconnect revokes
+only this site's hosted connection and retains TMGMT history. Newly created
+credentials are encrypted in site-local storage using Drupal's hash salt and
+excluded from configuration exports. Preserve the hash salt with database backups.
+
+**Advanced connection settings** retain the manual API URL, connection ID, and
+Key selectors for troubleshooting and older installations. The current demo API
+base is `https://tms-llm-bridge.fly.dev`. It is configured automatically; the demo
+UI URL is not the API base URL.
 
 ## Runtime contract
 
@@ -141,7 +156,7 @@ X-ELAN-Timestamp: <unix seconds>
 X-ELAN-Signature: sha256=<hex digest>
 ```
 
-HTTP 2xx is delivered; network errors, 429, and 5xx are retried with capped
+HTTP 2xx is delivered; network errors, 408, 425, 429, and 5xx are retried with capped
 backoff; other 4xx responses become durable failures. After repairing the
 connection, an administrator can use **Retry failed events** on the module
 settings page. Drupal cron also recreates lost queue wake-ups and stale worker
@@ -152,7 +167,7 @@ leases from the durable outbox.
 ```bash
 composer update
 composer check
-bash bin/build-module-zip.sh --expect 0.1.0
+bash bin/build-module-zip.sh --expect 0.2.0
 ```
 
 CI pins three compatibility lanes: current Drupal 10 with TMGMT 1.17.0 on PHP

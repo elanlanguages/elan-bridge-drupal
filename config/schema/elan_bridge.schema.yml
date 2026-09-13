@@ -22,3 +22,8 @@ tmgmt.translator.settings.elan_bridge:
     binding_id:
       type: integer
       label: 'Bridge project binding ID'
+
+key.provider.elan_bridge:
+  type: mapping
+  label: 'ELAN managed credential settings'
+  mapping: {}
