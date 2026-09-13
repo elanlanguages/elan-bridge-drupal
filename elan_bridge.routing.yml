@@ -27,3 +27,33 @@ elan_bridge.snapshot_translations:
   methods: [POST]
   options:
     no_cache: true
+
+elan_bridge.setup:
+  path: '/admin/config/regional/elan-bridge/setup'
+  defaults:
+    _form: '\Drupal\elan_bridge\Form\SetupForm'
+    _title: 'Connect to ELAN'
+  requirements:
+    _permission: 'administer elan bridge'
+  options:
+    no_cache: true
+
+elan_bridge.setup_complete:
+  path: '/admin/config/regional/elan-bridge/setup/complete'
+  defaults:
+    _controller: '\Drupal\elan_bridge\Controller\SetupController::complete'
+  requirements:
+    _permission: 'administer elan bridge'
+  methods: [GET]
+  options:
+    no_cache: true
+
+elan_bridge.setup_probe:
+  path: '/elan-bridge/v1/setup/probe'
+  defaults:
+    _controller: '\Drupal\elan_bridge\Controller\SetupController::probe'
+  requirements:
+    _access: 'TRUE'
+  methods: [POST]
+  options:
+    no_cache: true

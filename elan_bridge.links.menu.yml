@@ -1,5 +1,5 @@
 elan_bridge.settings:
   title: 'ELAN AI Bridge'
   description: 'Configure the ELAN AI Bridge connection and credentials.'
-  route_name: elan_bridge.settings
+  route_name: elan_bridge.setup
   parent: system.admin_config_regional
