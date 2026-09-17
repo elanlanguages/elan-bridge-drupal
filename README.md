@@ -5,11 +5,12 @@ Bridge**. Drupal remains responsible for extracting content, preserving entity
 and Paragraphs structure, reviewing translations, and applying revisions. ELAN
 Bridge runs the translation workflow and returns translated TMGMT data items.
 
-Version **0.2.1** adds self-service setup through the hosted
-[ELAN demo](https://demo.elanlanguages.ai). Install the module, open its
-configuration page, and choose **Connect to ELAN demo**. Sign in, choose your
-organization and project, then return to Drupal. The wizard verifies the site's
-callback and configures credentials, one provider, and language mappings.
+Version **0.2.1** provides self-service setup through
+[ELAN AI Bridge](https://demo.elanlanguages.ai). This is the production service
+for this integration. Install the module, open its configuration page, and start
+the connection wizard. Sign in, choose your organization and project, then return
+to Drupal. The wizard verifies the site's callback and configures credentials,
+one provider, and language mappings.
 
 The translation connector supports immutable snapshots, signed durable delivery,
 and TMGMT editorial review. Intermediate workflow lifecycle callbacks remain
@@ -85,8 +86,8 @@ immediately visible to the Drupal site.
 2. Open **Configuration → Region and language → ELAN AI Bridge**, or the
    module's **Configure** link. Confirm the detected public HTTPS Drupal URL.
    A public callback override is available for local development tunnels.
-3. Choose **Connect to ELAN demo**. Sign in to demo and choose an organization
-   where you are an owner or administrator.
+3. Start the connection wizard. Sign in to ELAN AI Bridge and choose an
+   organization where you are an owner or administrator.
 4. Select an existing compatible translation project or create one for this
    site. Approve the connection and return to Drupal.
 5. Confirm the connection, project, and background-processing status. The wizard
@@ -95,9 +96,8 @@ immediately visible to the Drupal site.
 6. Submit a test page through TMGMT, review its translated fields, and accept it.
 
 No manual credential exchange or database access is required for site setup.
-The hosted demo must have the matching Drupal pairing endpoints and auth-schema
-migration deployed. Drupal cron must run for background delivery; the wizard
-reports its last run, and the operations guide explains scheduling.
+Drupal cron must run for background delivery; the wizard reports its last run,
+and the operations guide explains scheduling.
 
 Reconnect preserves existing credentials and Key references. Disconnect revokes
 only this site's hosted connection and retains TMGMT history. Newly created
@@ -105,9 +105,9 @@ credentials are encrypted in site-local storage using Drupal's hash salt and
 excluded from configuration exports. Preserve the hash salt with database backups.
 
 **Advanced connection settings** retain the manual API URL, connection ID, and
-Key selectors for troubleshooting and older installations. The current demo API
-base is `https://tms-llm-bridge.fly.dev`. It is configured automatically; the demo
-UI URL is not the API base URL.
+Key selectors for troubleshooting and older installations. The API base is
+`https://tms-llm-bridge.fly.dev`, and the web application is available at
+`https://demo.elanlanguages.ai`. Setup configures the API address automatically.
 
 ## Runtime contract
 
