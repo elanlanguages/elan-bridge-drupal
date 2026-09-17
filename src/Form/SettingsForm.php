@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Drupal\elan_bridge\Form;
 
+use Drupal\Core\Url;
 use Drupal\Core\Config\ConfigFactoryInterface;
 use Drupal\Core\Config\TypedConfigManagerInterface;
 use Drupal\Core\Form\ConfigFormBase;
@@ -57,6 +58,11 @@ final class SettingsForm extends ConfigFormBase {
    * {@inheritdoc}
    */
   public function buildForm(array $form, FormStateInterface $form_state): array {
+    $form['setup'] = [
+      '#type' => 'link',
+      '#title' => $this->t('Connect automatically to ELAN demo'),
+      '#url' => Url::fromRoute('elan_bridge.setup'),
+    ];
     $config = $this->config(ConnectionSettings::CONFIG_NAME);
     $form['bridge_url'] = [
       '#type' => 'url',
