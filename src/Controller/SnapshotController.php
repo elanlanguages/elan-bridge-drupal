@@ -159,7 +159,8 @@ final class SnapshotController {
   private function requireAuthentication(Request $request): void {
     $authorization = (string) $request->headers->get('Authorization', '');
     $secret = $this->settings->bearerSecret();
-    if ($secret === ''
+    if ($this->settings->connectionId() === ''
+      || $secret === ''
       || preg_match('/^Bearer[ \t]+(.+)$/i', $authorization, $matches) !== 1
       || !hash_equals($secret, $matches[1])) {
       throw new HttpException(

@@ -6,6 +6,7 @@ namespace Drupal\elan_bridge\Setup;
 
 use Drupal\Component\Datetime\TimeInterface;
 use Drupal\Core\Config\ConfigFactoryInterface;
+use Drupal\Core\Cache\CacheBackendInterface;
 use Drupal\Core\Database\Connection;
 use Drupal\Core\Entity\EntityTypeManagerInterface;
 use Drupal\Core\Language\LanguageManagerInterface;
@@ -37,6 +38,7 @@ final class SetupManager {
     private readonly ConnectionSettings $connection,
     private readonly LockBackendInterface $lock,
     private readonly Connection $database,
+    private readonly CacheBackendInterface $configCache,
   ) {}
 
   /**
@@ -58,6 +60,9 @@ final class SetupManager {
       throw new \RuntimeException('Another administrator is connecting this site. Retry shortly.');
     }
     try {
+      if ($this->state->get('elan_bridge.pending_disconnect', '')) {
+        throw new \RuntimeException('Retry the pending ELAN disconnect before starting a new connection.');
+      }
       $site_url = self::normalizeUrl($site_url);
       $prior = $this->secrets->get('pending');
       if (!empty($prior['handoff_id']) && $prior['expires'] >= $this->time->getCurrentTime()) {
@@ -95,7 +100,7 @@ final class SetupManager {
       $payload['verifier_hash'] = hash('sha256', $pending['verifier']);
       unset($payload['verifier'], $payload['uid'], $payload['expires']);
       $result = $this->request('initiate', $payload);
-      if (!preg_match('/^[a-f0-9]{64}$/', $result['handoff_id'] ?? '')) {
+      if (!is_string($result['handoff_id'] ?? NULL) || !preg_match('/^[a-f0-9]{64}$/', $result['handoff_id'])) {
         throw new \RuntimeException('ELAN returned an invalid setup response.');
       }
       $pending['handoff_id'] = $result['handoff_id'];
@@ -150,12 +155,12 @@ final class SetupManager {
    * Atomically configures Key references and the canonical TMGMT provider.
    */
   public function apply(array $result, array $pending): void {
-    if (!is_int($result['binding_id'] ?? NULL) || $result['binding_id'] < 1 || !preg_match('/^[a-f0-9-]{36}$/', $result['connection_id'] ?? '') || empty($result['project_id']) || $result['source_language'] !== $pending['source_language']) {
+    if (!is_int($result['binding_id'] ?? NULL) || $result['binding_id'] < 1 || !is_string($result['connection_id'] ?? NULL) || !preg_match('/^[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}$/', $result['connection_id']) || !is_string($result['project_id'] ?? NULL) || $result['project_id'] === '' || !is_string($result['bridge_url'] ?? NULL) || ($result['source_language'] ?? NULL) !== $pending['source_language']) {
       throw new \RuntimeException('ELAN returned an incomplete project binding.');
     }
     $bridge_url = self::normalizeUrl($result['bridge_url']);
     $targets = $result['target_languages'] ?? [];
-    if (!$targets || array_diff($targets, $pending['target_languages'])) {
+    if (!is_array($targets) || !$targets || count(array_filter($targets, 'is_string')) !== count($targets) || array_diff($targets, $pending['target_languages'])) {
       throw new \RuntimeException('ELAN returned languages that are not enabled on this site.');
     }
     $storage = $this->entities->getStorage('tmgmt_translator');
@@ -216,34 +221,61 @@ final class SetupManager {
     }
     catch (\Throwable $error) {
       $transaction->rollBack();
+      // Database rollback does not undo config/entity/state objects in memory.
+      $this->configCache->deleteMultiple(array_merge([ConnectionSettings::CONFIG_NAME, 'tmgmt.translator.elan_bridge'], array_map(fn($id) => 'key.key.' . $id, array_values($key_ids))));
+      $this->configFactory->reset();
+      $this->entities->getStorage('key')->resetCache();
+      $storage->resetCache();
+      $this->state->resetCache();
       throw $error;
     }
   }
 
   /**
-   * Revokes the hosted connection while retaining historical jobs and results.
+   * Revokes local access and returns whether hosted revocation was confirmed.
    */
-  public function disconnect(): void {
-    $active = $this->database->select('elan_bridge_snapshot', 's')->condition('status', 'pending')->countQuery()->execute()->fetchField();
-    if ($active) {
-      throw new \RuntimeException('Wait for pending translations or cancel them in TMGMT before disconnecting.');
+  public function disconnect(): bool {
+    if (!$this->lock->acquire('elan_bridge.setup', 60)) {
+      throw new \RuntimeException('Another administrator is changing this connection. Retry shortly.');
     }
-    $connection = $this->connection->connectionId();
-    if ($connection === '') {
-      return;
+    try {
+      $active = $this->database->select('elan_bridge_snapshot', 's')->condition('status', 'pending')->countQuery()->execute()->fetchField();
+      if ($active) {
+        throw new \RuntimeException('Wait for pending translations or cancel them in TMGMT before disconnecting.');
+      }
+      $connection = $this->connection->connectionId() ?: $this->state->get('elan_bridge.pending_disconnect', '');
+      if ($connection === '') {
+        return TRUE;
+      }
+      // Retain the identity and Key references for retry after an outage.
+      // Clear local access before making the network request.
+      $this->state->set('elan_bridge.pending_disconnect', $connection);
+      $this->state->set('elan_bridge.previous_connection_id', $connection);
+      $this->configFactory->getEditable(ConnectionSettings::CONFIG_NAME)->set('connection_id', '')->save();
+      $status = $this->state->get('elan_bridge.setup', []);
+      $status['connected_at'] = NULL;
+      $this->state->set('elan_bridge.setup', $status);
+      $this->secrets->delete('pending');
+      $timestamp = $this->time->getCurrentTime();
+      try {
+        $result = $this->request('disconnect', [
+          'connection_id' => $connection,
+          'timestamp' => $timestamp,
+          'proof' => hash_hmac('sha256', "disconnect:$connection:$timestamp", $this->connection->webhookSecret()),
+        ]);
+      }
+      catch (\RuntimeException | \JsonException $error) {
+        return FALSE;
+      }
+      if (($result['disconnected'] ?? NULL) !== TRUE) {
+        return FALSE;
+      }
+      $this->state->delete('elan_bridge.pending_disconnect');
+      return TRUE;
     }
-    $timestamp = $this->time->getCurrentTime();
-    $this->request('disconnect', [
-      'connection_id' => $connection,
-      'timestamp' => $timestamp,
-      'proof' => hash_hmac('sha256', "disconnect:$connection:$timestamp", $this->connection->webhookSecret()),
-    ]);
-    $this->state->set('elan_bridge.previous_connection_id', $connection);
-    $this->configFactory->getEditable(ConnectionSettings::CONFIG_NAME)->set('connection_id', '')->save();
-    $status = $this->state->get('elan_bridge.setup', []);
-    $status['connected_at'] = NULL;
-    $this->state->set('elan_bridge.setup', $status);
-    $this->secrets->delete('pending');
+    finally {
+      $this->lock->release('elan_bridge.setup');
+    }
   }
 
   /**
@@ -265,7 +297,11 @@ final class SetupManager {
     if ($response->getStatusCode() !== 200) {
       throw new \RuntimeException('ELAN could not finish this setup step. Retry, or restart setup if it expired.');
     }
-    return json_decode((string) $response->getBody(), TRUE, 512, JSON_THROW_ON_ERROR);
+    $result = json_decode((string) $response->getBody(), TRUE, 512, JSON_THROW_ON_ERROR);
+    if (!is_array($result)) {
+      throw new \RuntimeException('ELAN returned an invalid setup response.');
+    }
+    return $result;
   }
 
 }

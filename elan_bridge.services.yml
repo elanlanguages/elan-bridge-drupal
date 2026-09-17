@@ -72,3 +72,4 @@ services:
       - '@elan_bridge.connection_settings'
       - '@lock.persistent'
       - '@database'
+      - '@cache.config'

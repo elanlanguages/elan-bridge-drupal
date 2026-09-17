@@ -23,7 +23,13 @@ final class ElanBridgeKeyProvider extends KeyProviderBase {
    * {@inheritdoc}
    */
   public function getKeyValue(KeyInterface $key) {
-    return \Drupal::service('elan_bridge.secret_store')->get($key->id())['value'] ?? NULL;
+    try {
+      return \Drupal::service('elan_bridge.secret_store')->get($key->id())['value'] ?? NULL;
+    }
+    catch (\RuntimeException $error) {
+      \Drupal::logger('elan_bridge')->error('Cannot read ELAN credentials. Restore the original site hash salt and credential storage, then reconnect.');
+      return NULL;
+    }
   }
 
 }

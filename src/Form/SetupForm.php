@@ -43,6 +43,7 @@ final class SetupForm extends FormBase {
     $state = $this->siteState;
     $connection = $this->config('elan_bridge.settings')->get('connection_id');
     $saved = $state->get('elan_bridge.setup', []);
+    $pending_disconnect = (bool) $state->get('elan_bridge.pending_disconnect', '');
     $request = $this->getRequest();
     $form['#cache']['max-age'] = 0;
     $form['intro'] = ['#markup' => '<p>' . $this->t('Connect this Drupal site to demo.elanlanguages.ai. Sign in to ELAN, select your organization and translation project, then return here. Credentials and language mappings are configured automatically.') . '</p>'];
@@ -73,15 +74,19 @@ final class SetupForm extends FormBase {
       '#type' => 'submit',
       '#value' => $connection ? $this->t('Reconnect to ELAN demo') : $this->t('Connect to ELAN demo'),
       '#button_type' => 'primary',
+      '#disabled' => $pending_disconnect,
     ];
-    if ($connection) {
+    if ($connection || $pending_disconnect) {
       $form['disconnect_notice'] = ['#markup' => '<p>' . $this->t('Disconnect revokes translation access for this site. Existing review results and job history remain available.') . '</p>'];
       $form['actions']['disconnect'] = [
         '#type' => 'submit',
-        '#value' => $this->t('Disconnect'),
+        '#value' => $pending_disconnect ? $this->t('Retry ELAN disconnect') : $this->t('Disconnect'),
         '#submit' => ['::disconnectSubmit'],
         '#limit_validation_errors' => [],
       ];
+    }
+    if ($pending_disconnect) {
+      $form['pending_disconnect'] = ['#markup' => '<p>' . $this->t('Drupal access is disconnected locally. ELAN has not confirmed revocation. Retry the disconnect when ELAN is reachable before reconnecting this site.') . '</p>'];
     }
     $form['advanced'] = [
       '#type' => 'link',
@@ -122,8 +127,12 @@ final class SetupForm extends FormBase {
    */
   public function disconnectSubmit(array &$form, FormStateInterface $form_state): void {
     try {
-      $this->setup->disconnect();
-      $this->messenger()->addStatus($this->t('ELAN has been disconnected. You can reconnect from this page.'));
+      if ($this->setup->disconnect()) {
+        $this->messenger()->addStatus($this->t('ELAN has been disconnected. You can reconnect from this page.'));
+      }
+      else {
+        $this->messenger()->addWarning($this->t('Drupal access is disconnected locally, but ELAN has not confirmed revocation. Use Retry ELAN disconnect when ELAN is reachable.'));
+      }
       $form_state->setRedirect('elan_bridge.setup');
     }
     catch (\Throwable $error) {

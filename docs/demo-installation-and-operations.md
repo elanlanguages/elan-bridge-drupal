@@ -1,6 +1,6 @@
 # Drupal demo installation and operations
 
-Module 0.2.0 connects through the hosted [ELAN demo](https://demo.elanlanguages.ai).
+Module 0.2.1 connects through the hosted [ELAN demo](https://demo.elanlanguages.ai).
 The Drupal administrator can complete setup without manually exchanging keys,
 connection IDs, or binding IDs. The ELAN account must have owner or administrator
 access to the selected organization. Install the module on the Drupal host;
@@ -152,7 +152,7 @@ unchecked, and both source and accepted target remained unpublished.
 | Job waits with no hosted execution | Check the Drupal queue runner, outbound HTTPS access, and Drupal logs for event delivery errors. |
 | Hosted execution fails | Inspect the project's execution history in demo. Confirm Bridge can reach the Drupal snapshot routes and that its bearer matches Drupal. |
 | Authentication or signature rejected | Have the administrator verify both sides of the affected credential and the host clock. Keep the bearer and HMAC secret separate. |
-| Durable event failed | Repair the cause, save settings, then use **Retry failed events** on the ELAN settings page and let the runner process the queue. |
+| Durable event failed | Repair the cause with the same Bridge URL, connection ID and Key reference IDs, then use **Retry failed events** and let the runner process the queue. If those values changed, restore the original identity or cancel the old TMGMT job and submit a new job. Check hosted history first to avoid duplicate work. |
 | Result rejected | Inspect locale, complete field keys, snapshot state, and validation errors. Correct the cause before resubmitting. |
 | Demo project says Failed to save | Follow [bridge-ui issue #263](https://github.com/elanlanguages/bridge-ui/issues/263). Generic project autosave resends a polling binding that the API rejects. Affected settings edits may not persist. Translation execution passed with the existing binding. |
 
@@ -213,3 +213,8 @@ receiving site's stable HTTPS callback URL.
 Contact [ELAN support](mailto:support@elanlanguages.com) or your account manager
 with the Drupal job/item ID, time, target locale, module version, and demo
 execution ID. Keep credentials and source content out of public issue reports.
+
+If hosted disconnect fails, Drupal revokes local snapshot and translation access
+immediately. The setup page retains **Retry ELAN disconnect** to confirm hosted
+revocation after the outage. Reconnect becomes available after that succeeds.
+Existing TMGMT job history and Key references are retained.

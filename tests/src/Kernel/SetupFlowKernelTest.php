@@ -4,6 +4,13 @@ declare(strict_types=1);
 
 namespace Drupal\Tests\elan_bridge\Kernel;
 
+use Drupal\Core\State\State;
+use Drupal\elan_bridge\Setup\SecretStore;
+use Drupal\Component\Serialization\PhpSerialize;
+use Drupal\Core\KeyValueStore\KeyValueDatabaseFactory;
+use Symfony\Component\HttpKernel\Exception\HttpException;
+use Symfony\Component\HttpFoundation\Request;
+use Drupal\Core\State\StateInterface;
 use GuzzleHttp\Client;
 use GuzzleHttp\Middleware;
 use GuzzleHttp\HandlerStack;
@@ -229,6 +236,155 @@ final class SetupFlowKernelTest extends KernelTestBase {
     $kv->set('second', $kv->get('first'));
     $this->expectException(\RuntimeException::class);
     $store->get('second');
+  }
+
+  /**
+   * Unreadable encrypted credentials make the provider unavailable, not fatal.
+   */
+  public function testUnreadableKeyFailsClosed(): void {
+    $key = Key::load('elan_bridge_bearer');
+    $key->set('key_provider', 'elan_bridge')->set('key_provider_settings', [])->save();
+    $this->container->get('keyvalue')->get('elan_bridge.secrets')->set('elan_bridge_bearer', 'corrupt');
+    self::assertNull($key->getKeyValue());
+    self::assertFalse($this->container->get('elan_bridge.connection_settings')->isConfigured());
+  }
+
+  /**
+   * Invalid hosted JSON shapes cannot change a working local connection.
+   */
+  public function testInvalidSetupResponses(): void {
+    $mock = new MockHandler([new Response(200, [], 'null')]);
+    $this->container->set('http_client', new Client(['handler' => HandlerStack::create($mock)]));
+    $manager = $this->container->get('elan_bridge.setup_manager');
+    try {
+      $manager->start('https://cms.example.org', 'https://cms.example.org');
+      self::fail('Scalar JSON must be rejected.');
+    }
+    catch (\RuntimeException $error) {
+      self::assertStringContainsString('invalid setup response', $error->getMessage());
+    }
+    foreach (['bridge_url' => [], 'target_languages' => 'de', 'connection_id' => [], 'source_language' => NULL] as $field => $value) {
+      $result = $this->setupResult();
+      $result[$field] = $value;
+      try {
+        $manager->apply($result, $this->setupPending());
+        self::fail('Invalid binding must be rejected.');
+      }
+      catch (\RuntimeException $error) {
+        self::assertStringStartsWith('ELAN returned', $error->getMessage());
+      }
+      self::assertSame('drupal-kernel-site', $this->config('elan_bridge.settings')->get('connection_id'));
+      self::assertNull(Translator::load('elan_bridge'));
+    }
+  }
+
+  /**
+   * Rollback restores config, entities and state within the same request.
+   */
+  public function testApplyRollbackClearsCaches(): void {
+    Key::load('elan_bridge_bearer')->delete();
+    Key::load('elan_bridge_webhook')->delete();
+    // Kernel tests default to memory key/value storage without transactions.
+    // Exercise rollback against the database stores used by a real site.
+    $factory = new KeyValueDatabaseFactory(new PhpSerialize(), $this->container->get('database'));
+    $this->container->set('elan_bridge.secret_store', new SecretStore($factory));
+    $state = new State($factory, $this->container->get('cache.bootstrap'), $this->container->get('lock'));
+    $state->set('elan_bridge.setup', ['project_id' => 'original']);
+    $failing_state = $this->createMock(StateInterface::class);
+    $failing_state->method('set')->willReturnCallback(function ($key, $value) use ($state) {
+      $state->set($key, $value);
+      if ($key === 'elan_bridge.previous_connection_id') {
+        throw new \RuntimeException('Injected failure after setup writes.');
+      }
+    });
+    $failing_state->method('resetCache')->willReturnCallback(fn() => $state->resetCache());
+    $this->container->set('state', $failing_state);
+    try {
+      $this->container->get('elan_bridge.setup_manager')->apply($this->setupResult(), $this->setupPending());
+      self::fail('Injected failure must roll back.');
+    }
+    catch (\RuntimeException $error) {
+      self::assertStringContainsString('Injected failure', $error->getMessage());
+    }
+    self::assertSame('drupal-kernel-site', $this->container->get('elan_bridge.connection_settings')->connectionId());
+    self::assertNull(Translator::load('elan_bridge'));
+    self::assertNull(Key::load('elan_bridge_bearer'));
+    self::assertNull(Key::load('elan_bridge_webhook'));
+    self::assertSame([], $this->container->get('elan_bridge.secret_store')->get('elan_bridge_bearer'));
+    self::assertSame(['project_id' => 'original'], $state->get('elan_bridge.setup'));
+    self::assertNull($state->get('elan_bridge.previous_connection_id'));
+    // Verify a later request also cannot see rolled-back configuration.
+    $this->container->get('config.factory')->reset();
+    self::assertSame('drupal-kernel-site', $this->config('elan_bridge.settings')->get('connection_id'));
+  }
+
+  /**
+   * A hosted outage revokes local access and leaves an explicit retry path.
+   */
+  public function testDisconnectDuringOutage(): void {
+    $history = [];
+    $stack = HandlerStack::create(new MockHandler([
+      new Response(503),
+      new Response(200, [], '{"disconnected":true}'),
+    ]));
+    $stack->push(Middleware::history($history));
+    $this->container->set('http_client', new Client(['handler' => $stack]));
+    $manager = $this->container->get('elan_bridge.setup_manager');
+    self::assertFalse($manager->disconnect());
+    self::assertFalse($this->container->get('elan_bridge.connection_settings')->isConfigured());
+    self::assertSame('drupal-kernel-site', $this->container->get('state')->get('elan_bridge.pending_disconnect'));
+    $request = Request::create('/');
+    $request->headers->set('Authorization', 'Bearer kernel-bearer-secret');
+    try {
+      $this->container->get('elan_bridge.snapshot_controller')->view($request, str_repeat('a', 64));
+      self::fail('Retained credentials must not authorize a disconnected site.');
+    }
+    catch (HttpException $error) {
+      self::assertSame(401, $error->getStatusCode());
+    }
+    try {
+      $manager->start('https://cms.example.org', 'https://cms.example.org');
+      self::fail('Outstanding hosted revocation must be reconciled first.');
+    }
+    catch (\RuntimeException $error) {
+      self::assertStringContainsString('pending ELAN disconnect', $error->getMessage());
+    }
+    self::assertTrue($manager->disconnect());
+    self::assertNull($this->container->get('state')->get('elan_bridge.pending_disconnect'));
+    self::assertCount(2, $history);
+    foreach ($history as $entry) {
+      $body = json_decode((string) $entry['request']->getBody(), TRUE);
+      self::assertSame('drupal-kernel-site', $body['connection_id']);
+      self::assertSame(hash_hmac('sha256', 'disconnect:drupal-kernel-site:' . $body['timestamp'], 'kernel-webhook-secret'), $body['proof']);
+    }
+    self::assertSame('kernel-bearer-secret', Key::load('elan_bridge_bearer')->getKeyValue());
+  }
+
+  /**
+   * Returns an approved hosted binding for failure and rollback tests.
+   */
+  private function setupResult(): array {
+    return [
+      'connection_id' => 'aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee',
+      'binding_id' => 42,
+      'project_id' => 'demo-project',
+      'bridge_url' => 'https://bridge.example.test/api',
+      'source_language' => 'en',
+      'target_languages' => ['de'],
+    ];
+  }
+
+  /**
+   * Returns the matching site-bound setup request.
+   */
+  private function setupPending(): array {
+    return [
+      'site_url' => 'https://cms.example.org',
+      'source_language' => 'en',
+      'target_languages' => ['de'],
+      'bearer' => 'kernel-bearer-secret',
+      'webhook_secret' => 'kernel-webhook-secret',
+    ];
   }
 
   /**

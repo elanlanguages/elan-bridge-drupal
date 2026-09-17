@@ -5,7 +5,7 @@ Bridge**. Drupal remains responsible for extracting content, preserving entity
 and Paragraphs structure, reviewing translations, and applying revisions. ELAN
 Bridge runs the translation workflow and returns translated TMGMT data items.
 
-Version **0.2.0** adds self-service setup through the hosted
+Version **0.2.1** adds self-service setup through the hosted
 [ELAN demo](https://demo.elanlanguages.ai). Install the module, open its
 configuration page, and choose **Connect to ELAN demo**. Sign in, choose your
 organization and project, then return to Drupal. The wizard verifies the site's
@@ -45,7 +45,7 @@ composer require elan/elan-bridge-drupal:^0.2
 vendor/bin/drush en elan_bridge -y
 ```
 
-The self-service release is `v0.2.0`. Pin `elan/elan-bridge-drupal:0.2.0` when an exact
+The self-service release is `v0.2.1`. Pin `elan/elan-bridge-drupal:0.2.1` when an exact
 version is required for acceptance testing.
 
 Composer installs the connector at `web/modules/contrib/elan_bridge` and
@@ -157,9 +157,12 @@ X-ELAN-Signature: sha256=<hex digest>
 ```
 
 HTTP 2xx is delivered; network errors, 408, 425, 429, and 5xx are retried with capped
-backoff; other 4xx responses become durable failures. After repairing the
-connection, an administrator can use **Retry failed events** on the module
-settings page. Drupal cron also recreates lost queue wake-ups and stale worker
+backoff; other 4xx responses become durable failures. After repairing a connection without changing its identity, an administrator
+can use **Retry failed events** on the module settings page. Events are pinned
+to the original Bridge URL, connection ID and Key reference IDs. If any of these
+changed, restore the original values before retrying, or cancel the old TMGMT
+job and submit a new job against the repaired connection. Check hosted execution
+history first to avoid translating the same content twice. Drupal cron also recreates lost queue wake-ups and stale worker
 leases from the durable outbox.
 
 ## Development
@@ -167,7 +170,7 @@ leases from the durable outbox.
 ```bash
 composer update
 composer check
-bash bin/build-module-zip.sh --expect 0.2.0
+bash bin/build-module-zip.sh --expect 0.2.1
 ```
 
 CI pins three compatibility lanes: current Drupal 10 with TMGMT 1.17.0 on PHP
